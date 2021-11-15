@@ -4,243 +4,116 @@ using System.Collections.Generic;
 
 namespace myDictionary
 {
-    class Dict<TKey, TValue> : IEnumerable
+    public class Dict<TKey, TValue> : IEnumerable<Item<TKey, TValue>>
     {
-        private int size = 5;
-        private Item<TKey, TValue>[] Items;
-        private List<TKey> Keys = new List<TKey>();
+        private int _size = 128;
+        private int _counter = 0;
+        private Item<TKey, TValue>[] _items;
+        public int Count => _counter;
+
         private int GetHash(TKey key)
         {
-            return key.GetHashCode() % size;
+            return key.GetHashCode() % _size;
         }
 
-        private Item<TKey, TValue>[] Augmentation(Item<TKey, TValue>[] items)
+        private void Augmentation()
         {
-            size *= 2;
-            Items = new Item<TKey, TValue>[size];
-            for(var i = 0; i < items.Length; i++)
+            var items = _items;
+            _size *= 2;
+            _items = new Item<TKey, TValue>[_size];
+            for (var i = 0; i < items.Length; i++)
             {
-                Items[i] = items[i];
+                Add(items[i]);
             }
-            return Items;
+        }
+
+        private int SearchIndex(TKey key)
+        {
+            var hash = GetHash(key);
+            int i = hash;
+
+            // Проверка на совпадение объекта по ключу
+            while (_items[i] is not null)
+            {
+                if (_items[i].Key.Equals(key))
+                {
+                    return i;
+                }
+                i = (i + 1) % _size;
+            }
+            throw new KeyNotFoundException($"Warning: Key \"{key}\" does not exist");
         }
 
         public Dict()
         {
-            Items = new Item<TKey, TValue>[size];
+            _items = new Item<TKey, TValue>[_size];
         }
 
         public void Add(Item<TKey, TValue> item)
         {
-            var hash = GetHash(item.Key);
-
-            if (Keys.Contains(item.Key))
+            if ((_size / 2) < ++_counter)
             {
-                Console.WriteLine($"Warning: Element with key \"{item.Key}\" are used");
+                Augmentation();
+                Add(item);
                 return;
             }
+            var hash = GetHash(item.Key);
 
-            if (Items[hash] == null)
+            if (_items[hash] is null)
             {
-                Keys.Add(item.Key);
-                Items[hash] = item;
-                return;
+                _items[hash] = item;
             }
             else
             {
-                var placed = false;
-                for (var i = hash; i < size; i++)
+                for (int i = 0; i < _size; i++)
                 {
-                    if (Items[i] == null)
+                    var index = (hash + i) % _size;
+
+                    if (_items[index] is null || _items[index].Key.Equals(item.Key))
                     {
-                        Keys.Add(item.Key);
-                        Items[i] = item;
+                        _items[index] = item;
                         return;
                     }
-
-                    if (Items[i].Key.Equals(item.Key))
-                    {
-                        Console.WriteLine($"Warning: Element with key \"{item.Key}\" are used");
-                        return;
-                    }
-                }
-
-                if (!placed)
-                {
-                    for (var i = 0; i < hash; i++)
-                    {
-                        if (Items[i] == null)
-                        {
-                            Keys.Add(item.Key);
-                            Items[i] = item;
-                            return;
-                        }
-
-                        if (Items[i].Key.Equals(item.Key))
-                        {
-                            Console.WriteLine($"Warning: Element with key \"{item.Key}\" are used");
-                            return;
-                        }
-                    }
-                }
-
-                if (!placed)
-                {
-                    Items = Augmentation(Items);
-                    Add(item);
-                    Console.WriteLine($"The size of the dictionary has doubled, size = {size}");
-                    return;
                 }
             }
         }
 
         public void Remove(TKey key)
         {
-            var hash = GetHash(key);
+            int index = SearchIndex(key);
+            _counter -= 1;
+            _items[index] = null;
+            index = (index + 1) % _size;
 
-            // Проверка наличия ключа в списке ключей
-            if (!Keys.Contains(key))
+            var temp = new List<Item<TKey, TValue>>();
+
+            while (_items[index] is not null)
             {
-                return;
+                temp.Add(_items[index]);
+                _items[index] = null;
+                index = (index + 1) % _size;
             }
-
-            // Проверка на совпадение объекта по ключу
-            if (Items[hash].Key.Equals(key))
+            foreach (var elem in temp)
             {
-                Items[hash] = null;
-                Keys.Remove(key);
-                return;
-            }
-
-            // поиск нужного объекта по всему массиву(если первый объект(по хэшу) типа "null")
-            if (Items[hash] == null)
-            {
-                for (var i = hash; i < size; i++)
-                {
-                    if (Items[i] != null && Items[i].Key.Equals(key))
-                    {
-                        Items[i] = null;
-                        Keys.Remove(key);
-                        return;
-                    }
-                }
-
-                for (var i = 0; i < hash; i++)
-                {
-                    if (Items[i] != null && Items[i].Key.Equals(key))
-                    {
-                        Items[i] = null;
-                        Keys.Remove(key);
-                        return;
-                    }
-                }
-                return;
-            }
-
-            // поиск нужного объекта по всему массиву(если объект(по хэшу) непустой но ключи не совпадают)
-            else
-            {
-                for (var i = hash; i < size; i++)
-                {
-                    if (Items[i] == null)
-                    {
-                        continue;
-                    }
-
-                    if (Items[i].Key.Equals(key))
-                    {
-                        Items[i] = null;
-                        Keys.Remove(key);
-                        return;
-                    }
-                }
-
-                for (var i = 0; i < hash; i++)
-                {
-                    if (Items[i] == null)
-                    {
-                        continue;
-                    }
-
-                    if (Items[i].Key.Equals(key))
-                    {
-                        Items[i] = null;
-                        Keys.Remove(key);
-                        return;
-                    }
-                }
+                Add(elem);
             }
         }
 
-        public TValue Search(TKey key)
+        public TValue Search(TKey key) => _items[SearchIndex(key)].Value;
+
+        public IEnumerator<Item<TKey, TValue>> GetEnumerator()
         {
-            var hash = GetHash(key);
-
-            if (!Keys.Contains(key))
+            foreach (var item in _items)
             {
-                return default(TValue);
-            }
-
-            //прямая проверка
-            if (Items[hash].Key.Equals(key))
-            {
-                return Items[hash].Value;
-            }
-
-            // Проверка всех елементов массива, если по хэшу "null"
-            if (Items[hash] == null)
-            {
-                foreach (var item in Items)
-                {
-                    if (item.Key.Equals(key))
-                    {
-                        return item.Value;
-                    }
-                }
-
-                return default(TValue);
-            }
-
-            else
-            {
-                for (var i = hash; i < size; i++)
-                {
-                    if (Items[i] == null)
-                    {
-                        continue;
-                    }
-
-                    if (Items[i].Key.Equals(key))
-                    {
-                        return Items[i].Value;
-                    }
-                }
-
-                for (var i = 0; i < hash; i++)
-                {
-                    if (Items[i] == null)
-                    {
-                        continue;
-                    }
-                
-                    if (Items[i].Key.Equals(key))
-                    {
-                        return Items[i].Value;
-                    }
-                }
-            }
-            return default;
-        }
-
-        public IEnumerator GetEnumerator()
-        {
-            foreach (var item in Items)
-            {
-                if (item != null)
+                if (item is not null)
                 {
                     yield return item;
                 }
             }
         }
+
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+        public TValue this[TKey key] => Search(key);
     }
 }

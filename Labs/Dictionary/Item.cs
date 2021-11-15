@@ -2,7 +2,7 @@
 
 namespace myDictionary
 {
-    class Item<TKey, TValue>
+    public record Item<TKey, TValue>
     {
         public TKey Key { get; set; }
         public TValue Value { get; set; }
@@ -15,7 +15,7 @@ namespace myDictionary
 
         public override int GetHashCode()
         {
-            return base.GetHashCode();
+            return Key.GetHashCode();
         }
 
         public override string ToString()

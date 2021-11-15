@@ -27,7 +27,7 @@ namespace myDictionary
             {
                 Console.WriteLine(country);
             }
-            Console.WriteLine(countries.Search(7) ?? "Не існує !!!");
+            Console.WriteLine(countries.Search(12) ?? "Не існує !!!");
             Console.WriteLine(countries.Search(4) ?? "Не існує !!!");
 
             countries.Remove(4);
